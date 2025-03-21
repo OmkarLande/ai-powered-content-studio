@@ -1,16 +1,25 @@
 import { useState } from "react";
 import { useAuth } from "../context/AuthContext";
 import signupImage from "../assets/signup.png"; // Add your image in assets folder
+import { toast } from "react-toastify";
+import "react-toastify/dist/ReactToastify.css";
+import axios from "axios";
+
 
 const Signup = () => {
   const { login } = useAuth();
   const [userData, setUserData] = useState({ email: "", password: "" });
 
-  const handleSubmit = (e) => {
+  const handleSubmit = async (e) => {
     e.preventDefault();
-    // Dummy token for signup success (Replace with API)
-    const dummyToken = "12345";
-    login(dummyToken);
+    try {
+      const response = await axios.post("http://localhost:5000/signup", userData);
+      toast.success("Signup successful! Please login.");
+      console.log("Signup response:", response.data);
+      window.location.href = "/login";
+    } catch (error) {
+      toast.error(error.response?.data?.error || "Signup failed");
+    }
   };
 
   return (
