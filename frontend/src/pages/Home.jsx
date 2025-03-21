@@ -10,6 +10,38 @@ import performance from "../assets/performance.png";
 import youtube from "../assets/youtube.png";
 import "slick-carousel/slick/slick.css";
 import "slick-carousel/slick/slick-theme.css";
+import { AiOutlineLeft, AiOutlineRight } from "react-icons/ai"; // Import arrows
+
+// Custom Arrow Components
+const CustomPrevArrow = (props) => {
+  const { onClick } = props;
+  return (
+    <button
+      className="absolute left-0 z-10 p-2 bg-gray-800 text-white rounded-full hover:bg-red-500 transition-all"
+      style={{ top: "50%", transform: "translateY(-50%)", marginLeft: "-30px" }}
+      onClick={onClick}
+    >
+      <AiOutlineLeft className="w-6 h-6" />
+    </button>
+  );
+};
+
+const CustomNextArrow = (props) => {
+  const { onClick } = props;
+  return (
+    <button
+      className="absolute right-0 z-10 p-2 bg-gray-800 text-white rounded-full hover:bg-red-500 transition-all"
+      style={{
+        top: "50%",
+        transform: "translateY(-50%)",
+        marginRight: "-30px",
+      }}
+      onClick={onClick}
+    >
+      <AiOutlineRight className="w-6 h-6" />
+    </button>
+  );
+};
 
 const Home = () => {
   const defaultOptions = {
@@ -30,14 +62,15 @@ const Home = () => {
     slidesToScroll: 1,
     autoplay: true,
     autoplaySpeed: 4000,
-    arrows: true,
+    prevArrow: <CustomPrevArrow />,
+    nextArrow: <CustomNextArrow />,
     responsive: [
       {
         breakpoint: 768,
         settings: {
           slidesToShow: 1,
           slidesToScroll: 1,
-          arrows: false,
+          arrows: true,
         },
       },
     ],
@@ -89,9 +122,13 @@ const Home = () => {
                 AI-Powered <span className="text-red-500">Content Studio</span>
               </h1>
               <p className="text-lg text-gray-600 mt-4">
-                Revolutionizing content creation with AI-driven scriptwriting,
-                video editing, and performance optimization.
+                Empower your content creation process with cutting-edge AI
+                technology that automates scriptwriting, streamlines video
+                editing, and enhances content performance. Our AI models ensure
+                high-quality results, helping you engage your audience
+                effectively while saving time and effort.
               </p>
+
               <div className="flex flex-col sm:flex-row gap-4 mt-6">
                 <button className="bg-red-600 hover:bg-red-700 text-white font-semibold py-3 px-6 rounded-lg text-lg shadow-lg">
                   Get Started
@@ -147,11 +184,11 @@ const Home = () => {
               Explore <span className="text-red-500">Models</span>
             </h2>
 
-            <Slider {...settings} className="w-full">
+            <Slider {...settings} className="w-[100%]">
               {carouselItems.map((item, index) => (
                 <div key={index} className="flex justify-center">
                   <div className="flex flex-col md:flex-row items-center gap-6 bg-gray-100 rounded-lg shadow-lg p-6 w-full max-w-4xl mx-auto">
-                    <div className="w-full md:w-1/2 space-y-4 text-center md:text-left">
+                    <div className="w-max space-y-4 text-center md:text-left">
                       <h3 className="text-2xl font-bold text-black">
                         {item.title}
                       </h3>
@@ -163,11 +200,11 @@ const Home = () => {
                         Explore Model
                       </Link>
                     </div>
-                    <div className="w-full md:w-1/2 flex justify-center">
+                    <div className="w-[1000px]  flex justify-center">
                       <img
                         src={item.imgSrc}
                         alt={item.title}
-                        className="w-full max-w-md object-contain rounded-lg shadow-md"
+                        className="w-auto h-[600px] object-cover rounded-lg "
                       />
                     </div>
                   </div>
