@@ -1,18 +1,30 @@
-import { useState } from "react";
-import reactLogo from "./assets/react.svg";
-import viteLogo from "/vite.svg";
-import "./App.css";
-import NotionAuth from "./components/NotionAuth";
+import React from "react";
+import { BrowserRouter as Router, Routes, Route } from "react-router-dom";
+import Home from "./pages/Home";
+import Navbar from "./components/Navbar";
+import GenScript from './pages/GenScript';
+import Features from "./pages/Features";
+import Voiceover from "./pages/Voiceover";
 
-function App() {
-  const [count, setCount] = useState(0);
-
+const App = () => {
   return (
-    <>
-      <h1 class="text-3xl font-bold underline text-red-500">Hello world!</h1>
-      <NotionAuth />
-    </>
+    <Router>
+      <div className="flex flex-col min-h-screen bg-white text-black">
+        <Navbar />
+        <div className="flex-1">
+          <Routes>
+            <Route path="/" element={<Home />} />
+            <Route path="/features/gen-script" element={<GenScript />} />
+            <Route path="/features/voice-over" element={<Voiceover />} />
+            <Route path="/features" element={<Features />} />
+          </Routes>
+        </div>
+        <footer className="border-t border-gray-300 bg-white w-full py-6 text-center text-gray-500">
+          © 2025 AI Content Studio. All rights reserved.
+        </footer>
+      </div>
+    </Router>
   );
-}
+};
 
 export default App;

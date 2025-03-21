@@ -1,97 +1,131 @@
 import os
-import requests
-from flask import Flask, request, jsonify
-from youtube_comments import get_youtube_comments  # Import YouTube comments function
+import warnings
+from flask import Flask, request, jsonify, send_file
+from crewai import Agent, Task, Crew, LLM
+from flask_cors import CORS
 
+# Suppress warnings
+warnings.filterwarnings('ignore')
+
+# Set up Flask app
 app = Flask(__name__)
+CORS(app)  # Enable CORS for all routes for simplicity
 
-# Notion OAuth Credentials
-NOTION_CLIENT_ID = "162d872b-594c-808c-8c87-0037bfed4a05"
-NOTION_CLIENT_SECRET = "secret_i1QAOAbPFmA4TNdNOS9SiFJtoLgkHswvKeSkpkojJhc"
-REDIRECT_URI = "https://api.notion.com/v1/oauth/authorize?client_id=162d872b-594c-808c-8c87-0037bfed4a05&response_type=code&owner=user&redirect_uri=http%3A%2F%2Flocalhost%3A8000%2Fintegrations%2Fnotion%2Foauth2callback"
-
-ACCESS_TOKENS = {}  # Store tokens (Use a database in production)
-
-
-@app.route("/notion/callback")
-def notion_callback():
-    """Handle Notion OAuth Callback"""
-    code = request.args.get("code")
-    if not code:
-        return jsonify({"error": "Authorization failed"}), 400
-
-    # Exchange code for access token
-    token_url = "https://api.notion.com/v1/oauth/token"
-    payload = {
-        "grant_type": "authorization_code",
-        "code": code,
-        "redirect_uri": REDIRECT_URI,
-        "client_id": NOTION_CLIENT_ID,
-        "client_secret": NOTION_CLIENT_SECRET,
-    }
-    headers = {"Content-Type": "application/json"}
-    response = requests.post(token_url, json=payload, headers=headers)
-
-    if response.status_code != 200:
-        return jsonify({"error": "Failed to fetch token"}), 400
-
-    token_data = response.json()
-    access_token = token_data["access_token"]
-    owner_id = token_data["owner"]["user"]["id"]  # Store per user
-
-    # Save token (for demonstration purposes, using a dictionary)
-    ACCESS_TOKENS[owner_id] = access_token
-
-    return jsonify({"message": "Notion connected successfully", "user_id": owner_id})
-
-
-@app.route("/notion/create-page", methods=["POST"])
-def create_page():
-    """Create a new page in a Notion database"""
-    data = request.json
-    user_id = data.get("user_id")
-    database_id = data.get("database_id")
-    title = data.get("title")
-
-    if not user_id or not database_id or not title:
-        return jsonify({"error": "Missing required fields"}), 400
-
-    access_token = ACCESS_TOKENS.get(user_id)
-    if not access_token:
-        return jsonify({"error": "User not authenticated"}), 401
-
-    notion_url = "https://api.notion.com/v1/pages"
-    headers = {
-        "Authorization": f"Bearer {access_token}",
-        "Content-Type": "application/json",
-        "Notion-Version": "2022-06-28"
-    }
-
-    page_data = {
-        "parent": {"database_id": database_id},
-        "properties": {
-            "Name": {"title": [{"text": {"content": title}}]}
-        }
-    }
-
-    response = requests.post(notion_url, json=page_data, headers=headers)
-    return response.json()
-
-
-@app.route("/youtube/comments", methods=["GET"])
-def youtube_comments():
-    """Fetch YouTube comments for a given video ID"""
-    video_id = request.args.get("video_id")
+@app.route('/generate', methods=['POST', 'GET'])
+def generate_content():
+    data = request.get_json()
+    print("Received data:", data)
     
-    if not video_id:
-        return jsonify({"error": "Missing video_id parameter"}), 400
-
+    if not data:
+        return jsonify({"error": "No data provided"}), 400
+    
+    topic = data.get("topic", "Artificial Intelligence")
+    
+    # Use a fixed API key instead of expecting it from the request
+    api_key = "AIzaSyCuKU4cJ80cqGTEVI5NF_1u9paxGJvzZdQ"
+    
     try:
-        comments = get_youtube_comments(video_id)
-        return jsonify({"comments": comments})
+        # Set up LLM with the API key
+        llm = LLM(
+            model="gemini/gemini-1.5-flash-8b",
+            temperature=0.7,
+            api_key=api_key
+        )
+        
+        print("LLM initialized successfully")
+        
+        # Define Agents
+        planner = Agent(
+            role="Content Planner",
+            goal=f"Plan engaging and factually accurate content on {topic}",
+            backstory=f"You're working on planning a blog article about the topic: {topic}.",
+            allow_delegation=False,
+            verbose=True,
+            llm=llm
+        )
+
+        writer = Agent(
+            role="Content Writer",
+            goal=f"Write insightful and factually accurate opinion pieces about the topic: {topic}",
+            backstory=f"You're writing a new opinion piece based on the Content Planner's outline.",
+            allow_delegation=False,
+            verbose=True,
+            llm=llm
+        )
+
+        editor = Agent(
+            role="Editor",
+            goal="Edit a given blog post to align with the writing style of the organization.",
+            backstory="You're reviewing the Content Writer's work to ensure quality and accuracy.",
+            allow_delegation=False,
+            verbose=True,
+            llm=llm
+        )
+
+        senior_reviewer = Agent(
+            role="Senior Reviewer",
+            goal="Ensure the final content meets YouTube guidelines and is suitable for publication.",
+            backstory="You're an experienced content reviewer specializing in YouTube compliance, ensuring all content aligns with platform rules.",
+            allow_delegation=False,
+            verbose=True,
+            llm=llm
+        )
+
+        # Define Tasks
+        plan = Task(
+            description=(
+                f"1. Identify the latest trends, key players, and noteworthy news on {topic}.\n"
+                "2. Determine the target audience and their interests.\n"
+                "3. Develop a detailed content outline including an introduction, key points, and a call to action.\n"
+                "4. Include SEO keywords and relevant data or sources."
+            ),
+            expected_output="A comprehensive content plan document with an outline, audience analysis, and SEO keywords.",
+            agent=planner,
+        )
+
+        write = Task(
+            description=(
+                f"1. Use the content plan to craft a compelling blog post on {topic}.\n"
+                "2. Incorporate SEO keywords naturally.\n"
+                "3. Structure the post with an engaging introduction, insightful body, and a strong conclusion.\n"
+                "4. Proofread for grammatical errors and brand voice alignment."
+            ),
+            expected_output="A well-written blog post in markdown format, ready for publication.",
+            agent=writer,
+        )
+
+        edit = Task(
+            description="Proofread the blog post for grammatical errors and ensure it aligns with the brand's voice.",
+            expected_output="A polished blog post ready for publication.",
+            agent=editor
+        )
+        
+        review = Task(
+            description="Ensure the content complies with YouTube's content policies and is safe for publishing.",
+            expected_output="A finalized article that meets YouTube's guidelines.",
+            agent=senior_reviewer
+        )
+        
+        # Create and run the Crew
+        crew = Crew(
+            agents=[planner, writer, editor, senior_reviewer],
+            tasks=[plan, write, edit, review],
+            verbose=True
+        )
+        
+        result = crew.kickoff()
+        print("Generated content successfully")
+        
+        return jsonify({"result": str(result)})
+    
     except Exception as e:
+        print(f"Error occurred: {str(e)}")
         return jsonify({"error": str(e)}), 500
+    
+@app.route('/download-audio', methods=['GET'])
+def download_audio():
+    return send_file("article_audio.mp3", as_attachment=True)
 
-
-if __name__ == "__main__":
-    app.run(debug=True)
+if __name__ == '__main__':
+    port = int(os.environ.get("PORT", 5000))
+    app.run(host='0.0.0.0', port=port, debug=True)
