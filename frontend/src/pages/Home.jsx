@@ -49,7 +49,7 @@ const Home = () => {
     autoplay: true,
     animationData: animation,
     rendererSettings: {
-      preserveAspectRatio: "xMidYMid slice",
+      // preserveAspectRatio: "xMidYMid slice",
     },
   };
 
@@ -112,12 +112,12 @@ const Home = () => {
       <main className="flex-1 w-full">
         {/* Hero Section */}
         <section className="relative w-full min-h-screen flex flex-col-reverse sm:flex-row items-center justify-center bg-white m-0 p-0">
-          <div className="block sm:hidden w-full flex justify-center mt-8">
+          <div className="block sm:hidden w-full justify-center mt-8">
             <Lottie options={defaultOptions} height={400} width={400} />
           </div>
 
-          <div className="w-full flex flex-col-reverse sm:flex-row items-center justify-between px-4 sm:px-8 lg:px-20">
-            <div className="max-w-2xl text-center sm:text-left mb-8 sm:mb-0">
+          <div className="w-full flex flex-col-reverse sm:flex-row items-start justify-between px-6 sm:px-8 lg:px-24">
+            <div className="max-w-2xl text-center pt-32 sm:text-left mb-8 sm:mb-0">
               <h1 className="text-4xl sm:text-5xl font-bold text-black leading-tight">
                 AI-Powered <span className="text-red-500">Content Studio</span>
               </h1>
@@ -140,7 +140,7 @@ const Home = () => {
             </div>
 
             <div className="hidden sm:flex w-1/2">
-              <Lottie options={defaultOptions} className="w-full max-w-lg" />
+              <Lottie options={defaultOptions} height={600} width={600} className="max-w-lg" />
             </div>
           </div>
         </section>
@@ -178,13 +178,13 @@ const Home = () => {
         </section>
 
         {/* Carousel Section */}
-        <section className="py-16 bg-white w-full">
+        <section className="py-32 bg-white w-full"> {/* Increased padding for height */}
           <div className="max-w-6xl mx-auto px-6">
             <h2 className="text-4xl font-bold text-center mb-12 text-black">
               Explore <span className="text-red-500">Models</span>
             </h2>
 
-            <Slider {...settings} className="w-[100%]">
+            <Slider {...settings} className="w-auto ">
               {carouselItems.map((item, index) => (
                 <div key={index} className="flex justify-center">
                   <div className="flex flex-col md:flex-row items-center gap-6 bg-gray-100 rounded-lg shadow-lg p-6 w-full max-w-4xl mx-auto">
@@ -214,8 +214,6 @@ const Home = () => {
           </div>
         </section>
       </main>
-
-     
     </div>
   );
 };
