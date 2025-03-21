@@ -1,8 +1,12 @@
 import os
+import re
 import warnings
 from flask import Flask, request, jsonify, send_file
 from crewai import Agent, Task, Crew, LLM
 from flask_cors import CORS
+from crewai_tools import YoutubeVideoSearchTool	
+from youtube_transcript_api import YouTubeTranscriptApi
+import google.generativeai as genai
 
 # Suppress warnings
 warnings.filterwarnings('ignore')
@@ -10,6 +14,36 @@ warnings.filterwarnings('ignore')
 # Set up Flask app
 app = Flask(__name__)
 CORS(app)  # Enable CORS for all routes for simplicity
+
+# Configure Gemini
+GEMINI_API_KEY = "AIzaSyCuKU4cJ80cqGTEVI5NF_1u9paxGJvzZdQ"
+OPENAI_API_KEY = "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"
+
+# Custom Gemini LLM Wrapper
+class GeminiLLM:
+    def __init__(self, model="gemini-1.5-flash", temperature=0.7):
+        self.model = genai.GenerativeModel(model)
+        self.temperature = temperature
+
+    def generate(self, prompt):
+        try:
+            response = self.model.generate_content(prompt)
+            return response.text
+        except Exception as e:
+            return f"Error: {str(e)}"
+
+# Initialize LLM
+llm = GeminiLLM(model="gemini-1.5-flash", temperature=0.7)
+
+# Custom YoutubeSearchTool with Gemini
+class GeminiYoutubeSearchTool(YoutubeVideoSearchTool):
+    def _run(self, query):
+        try:
+            # Custom implementation using Gemini
+            prompt = f"Analyze this YouTube video: {self.youtube_video_url}\n{query}"
+            return llm.generate(prompt)
+        except Exception as e:
+            return f"Error: {str(e)}"
 
 @app.route('/generate', methods=['POST', 'GET'])
 def generate_content():
@@ -21,19 +55,7 @@ def generate_content():
     
     topic = data.get("topic", "Artificial Intelligence")
     
-    # Use a fixed API key instead of expecting it from the request
-    api_key = "AIzaSyCuKU4cJ80cqGTEVI5NF_1u9paxGJvzZdQ"
-    
     try:
-        # Set up LLM with the API key
-        llm = LLM(
-            model="gemini/gemini-1.5-flash-8b",
-            temperature=0.7,
-            api_key=api_key
-        )
-        
-        print("LLM initialized successfully")
-        
         # Define Agents
         planner = Agent(
             role="Content Planner",
@@ -41,7 +63,7 @@ def generate_content():
             backstory=f"You're working on planning a blog article about the topic: {topic}.",
             allow_delegation=False,
             verbose=True,
-            llm=llm
+            llm=llm  # Use the custom Gemini LLM
         )
 
         writer = Agent(
@@ -50,7 +72,7 @@ def generate_content():
             backstory=f"You're writing a new opinion piece based on the Content Planner's outline.",
             allow_delegation=False,
             verbose=True,
-            llm=llm
+            llm=llm  # Use the custom Gemini LLM
         )
 
         editor = Agent(
@@ -59,7 +81,7 @@ def generate_content():
             backstory="You're reviewing the Content Writer's work to ensure quality and accuracy.",
             allow_delegation=False,
             verbose=True,
-            llm=llm
+            llm=llm  # Use the custom Gemini LLM
         )
 
         senior_reviewer = Agent(
@@ -68,7 +90,7 @@ def generate_content():
             backstory="You're an experienced content reviewer specializing in YouTube compliance, ensuring all content aligns with platform rules.",
             allow_delegation=False,
             verbose=True,
-            llm=llm
+            llm=llm  # Use the custom Gemini LLM
         )
 
         # Define Tasks
@@ -125,6 +147,109 @@ def generate_content():
 @app.route('/download-audio', methods=['GET'])
 def download_audio():
     return send_file("article_audio.mp3", as_attachment=True)
+
+def extract_video_id(youtube_url):
+    """Extracts the Video ID from a YouTube URL."""
+    pattern = r"(?:v=|\/)([0-9A-Za-z_-]{11}).*"
+    match = re.search(pattern, youtube_url)
+    return match.group(1) if match else None
+
+def get_youtube_transcript(video_id):
+    """Fetches the transcript of a YouTube video along with timestamps."""
+    try:
+        return YouTubeTranscriptApi.get_transcript(video_id)
+        print("Successfully fetched transcript")
+    except Exception as e:
+        return str(e)
+
+@app.route('/analyze_transcript', methods=['POST'])
+def analyze_transcript():
+    # Log: Starting analyze_transcript endpoint
+    print("Starting analyze_transcript endpoint")
+
+    # Get input data from the request
+    data = request.get_json()
+    if not data:
+        print("Error: No data provided in the request")
+        return jsonify({"error": "No data provided"}), 400
+
+    youtube_url = data.get("youtube_url")
+    if not youtube_url:
+        print("Error: Missing 'youtube_url' in request")
+        return jsonify({"error": "Missing 'youtube_url' in request"}), 400
+
+    # Extract video ID from the URL
+    video_id = extract_video_id(youtube_url)
+    if not video_id:
+        print("Error: Invalid YouTube URL")
+        return jsonify({"error": "Invalid YouTube URL"}), 400
+
+    # Log: Extracted video ID
+    print(f"Extracted video ID: {video_id}")
+
+    # Fetch the transcript
+    transcript = get_youtube_transcript(video_id)
+    print("Fetched transcript")
+    if isinstance(transcript, str):  # If an error occurred
+        print(f"Error fetching transcript: {transcript}")
+        return jsonify({"error": transcript}), 500
+
+    # Log: Successfully fetched transcript
+    print("Successfully fetched transcript")
+
+    try:
+        # Initialize the YoutubeVideoSearchTool
+        print("   fetched transcript")
+        youtube_search_tool = YoutubeVideoSearchTool(
+            youtube_video_url=youtube_url
+        )
+        print("Initialized YoutubeVideoSearchTool")
+
+        # Define the Transcript Analyzer Agent
+        transcript_analyzer = Agent(
+            role="Transcript Analyzer",
+            goal="Extract relevant content from the YouTube video transcript and provide timestamps in hh:mm:ss format.",
+            backstory="You are an expert in analyzing YouTube video transcripts and extracting key information with precise timestamps.",
+            tools=[youtube_search_tool],
+            verbose=True,
+            llm=llm  # Use the custom Gemini LLM
+        )
+        print("Defined Transcript Analyzer Agent")
+
+        # Define the Task for the Transcript Analyzer
+        analyze_task = Task(
+            description=(
+                f"1. Analyze the transcript of the YouTube video at {youtube_url}.\n"
+                "2. Extract relevant content from the transcript.\n"
+                "3. Ensure the timestamps for the extracted content are in hh:mm:ss format.\n"
+                "4. Ensure the difference between consecutive timestamps is less than 30 seconds.\n"
+                "5. Consider YouTube trends and popular topics when extracting relevant content."
+            ),
+            expected_output="A list of relevant content snippets with their corresponding timestamps in hh:mm:ss format.",
+            agent=transcript_analyzer
+        )
+        print("Defined Task for Transcript Analyzer")
+
+        # Create and run the Crew
+        crew = Crew(
+            agents=[transcript_analyzer],
+            tasks=[analyze_task],
+            verbose=True
+        )
+        print("Created Crew with Transcript Analyzer Agent and Task")
+
+        # Kickoff the task
+        result = crew.kickoff()
+        print("Task kickoff completed successfully")
+
+        # Return the result as JSON
+        print("Returning result as JSON")
+        return jsonify({"result": result})
+
+    except Exception as e:
+        print(f"Error occurred during transcript analysis: {str(e)}")
+        return jsonify({"error": str(e)}), 500
+
 
 if __name__ == '__main__':
     port = int(os.environ.get("PORT", 5000))
