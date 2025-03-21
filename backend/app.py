@@ -1,6 +1,6 @@
 import os
 import warnings
-from flask import Flask, request, jsonify
+from flask import Flask, request, jsonify, send_file
 from crewai import Agent, Task, Crew, LLM
 from flask_cors import CORS
 
@@ -121,6 +121,10 @@ def generate_content():
     except Exception as e:
         print(f"Error occurred: {str(e)}")
         return jsonify({"error": str(e)}), 500
+    
+@app.route('/download-audio', methods=['GET'])
+def download_audio():
+    return send_file("article_audio.mp3", as_attachment=True)
 
 if __name__ == '__main__':
     port = int(os.environ.get("PORT", 5000))
