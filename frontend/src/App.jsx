@@ -1,17 +1,24 @@
-import React from 'react';
-import { BrowserRouter as Router, Route, Routes } from 'react-router-dom';
-import Home from './pages/Home';
+import React from "react";
+import { BrowserRouter as Router, Routes, Route } from "react-router-dom";
+import Home from "./pages/Home";
+import Navbar from "./components/Navbar";
 import GenScript from './pages/GenScript';
 
 const App = () => {
   return (
     <Router>
-      <Routes>
-        <Route path="/" element={<Home />} />
-      </Routes>
-      <Routes>
-        <Route path="/gen-script" element={<GenScript/>} />
-      </Routes>
+      <div className="flex flex-col min-h-screen bg-white text-black">
+        <Navbar />
+        <div className="flex-1">
+          <Routes>
+            <Route path="/" element={<Home />} />
+            <Route path="/gen-script" element={<GenScript/>} />
+          </Routes>
+        </div>
+        <footer className="border-t border-gray-300 bg-white w-full py-6 text-center text-gray-500">
+          © 2025 AI Content Studio. All rights reserved.
+        </footer>
+      </div>
     </Router>
   );
 };
