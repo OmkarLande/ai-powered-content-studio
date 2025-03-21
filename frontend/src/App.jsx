@@ -10,6 +10,7 @@ import Login from "./pages/Login";
 import Signup from "./pages/Singup";
 import { AuthProvider } from "./context/AuthContext";
 import ProtectedRoute from "./components/ProtectedRoute";
+import Texttovoice from "./pages/Texttovoice";
 
 const App = () => {
   return (
@@ -43,6 +44,14 @@ const App = () => {
                 element={
                   <ProtectedRoute>
                     <Voiceover />
+                  </ProtectedRoute>
+                }
+              />
+              <Route
+                path="/features/text-to-speech"
+                element={
+                  <ProtectedRoute>
+                    <Texttovoice />
                   </ProtectedRoute>
                 }
               />
