@@ -215,10 +215,7 @@ const Home = () => {
         </section>
       </main>
 
-      {/* Footer */}
-      <footer className="border-t border-gray-300 bg-white w-full py-6 text-center text-gray-500">
-        © 2025 AI Content Studio. All rights reserved.
-      </footer>
+     
     </div>
   );
 };
