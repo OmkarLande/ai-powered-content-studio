@@ -49,7 +49,7 @@ function GenScript() {
       <Sidebar />
 
       {/* Main Content */}
-      <div className="flex-1 ml-64 p-8">
+      <div className="flex-1 items-center p-8">
         <div className="max-w-4xl mx-auto bg-white shadow-lg rounded-lg p-6">
           <h1 className="text-4xl font-bold text-red-500 mb-6 text-center">
             AI Script Generator

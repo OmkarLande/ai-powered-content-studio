@@ -19,7 +19,7 @@ const Voiceover = () => {
       <Sidebar />
 
       {/* Main content */}
-      <div className="flex-1 ml-64 p-6 flex flex-col items-center justify-center">
+      <div className="flex-1  p-6 flex flex-col items-center justify-center">
         <h1 className="text-3xl font-bold text-black mb-4">
           AI Voiceover Model
         </h1>
