@@ -26,6 +26,11 @@ const Sidebar = () => {
           Icon={Mic}
           label="AI Voice Over"
         />
+        <SidebarItem
+          to="/features/text-to-speech"
+          Icon={Mic}
+          label="Text to Speech"
+        />
       </nav>
     </div>
   );
