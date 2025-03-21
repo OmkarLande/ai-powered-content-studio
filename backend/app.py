@@ -1,83 +1,131 @@
-from flask import Flask, request, jsonify, send_file
-from flask_cors import CORS
-from crewai import Crew, Agent, Task
-from script.text_to_audio import generate_audio
 import os
-import logging
 import warnings
+from flask import Flask, request, jsonify
+from crewai import Agent, Task, Crew, LLM
+from flask_cors import CORS
 
+# Suppress warnings
 warnings.filterwarnings('ignore')
-logging.getLogger("werkzeug").setLevel(logging.ERROR)
 
+# Set up Flask app
 app = Flask(__name__)
-CORS(app)
+CORS(app)  # Enable CORS for all routes for simplicity
 
-# Defining AI agents
-planner = Agent(
-    role="Content Planner",
-    goal="Plan engaging and factually accurate content on {topic}",
-    backstory="You're responsible for creating an outline for an article on {topic}.",
-    allow_delegation=False,
-    verbose=True,
-    llm="mistral-small"
-)
-
-writer = Agent(
-    role="Content Writer",
-    goal="Write an insightful article based on the content plan.",
-    backstory="You write well-structured articles following the plan provided by the planner.",
-    allow_delegation=False,
-    verbose=True,
-    llm="mistral-small"
-)
-
-editor = Agent(
-    role="Editor",
-    goal="Edit the article to align with journalistic best practices.",
-    backstory="You proofread and refine the article before final publication.",
-    allow_delegation=False,
-    verbose=True,
-    llm="mistral-small"
-)
-
-# Define Tasks
-plan_task = Task(
-    description="Create an outline for an article on {topic}, including key points, target audience, and SEO keywords.",
-    expected_output="A structured content plan.",
-    agent=planner
-)
-
-write_task = Task(
-    description="Write a blog post based on the content plan.",
-    expected_output="A well-written blog post.",
-    agent=writer
-)
-
-edit_task = Task(
-    description="Edit the blog post to ensure grammatical accuracy and coherence.",
-    expected_output="A polished blog post.",
-    agent=editor
-)
-
-@app.route('/generate', methods=['POST'])
-def generate_article():
-    data = request.json
+@app.route('/generate', methods=['POST', 'GET'])
+def generate_content():
+    data = request.get_json()
+    print("Received data:", data)
+    
+    if not data:
+        return jsonify({"error": "No data provided"}), 400
+    
     topic = data.get("topic", "Artificial Intelligence")
+    
+    # Use a fixed API key instead of expecting it from the request
+    api_key = "AIzaSyCuKU4cJ80cqGTEVI5NF_1u9paxGJvzZdQ"
+    
+    try:
+        # Set up LLM with the API key
+        llm = LLM(
+            model="gemini/gemini-1.5-flash-8b",
+            temperature=0.7,
+            api_key=api_key
+        )
+        
+        print("LLM initialized successfully")
+        
+        # Define Agents
+        planner = Agent(
+            role="Content Planner",
+            goal=f"Plan engaging and factually accurate content on {topic}",
+            backstory=f"You're working on planning a blog article about the topic: {topic}.",
+            allow_delegation=False,
+            verbose=True,
+            llm=llm
+        )
 
-    crew = Crew(agents=[planner, writer, editor], tasks=[plan_task, write_task, edit_task], verbose=True)
-    result = crew.kickoff(inputs={"topic": topic})
+        writer = Agent(
+            role="Content Writer",
+            goal=f"Write insightful and factually accurate opinion pieces about the topic: {topic}",
+            backstory=f"You're writing a new opinion piece based on the Content Planner's outline.",
+            allow_delegation=False,
+            verbose=True,
+            llm=llm
+        )
 
-    # Convert article text to audio
-    audio_file = generate_audio(result, "article_audio.mp3")
+        editor = Agent(
+            role="Editor",
+            goal="Edit a given blog post to align with the writing style of the organization.",
+            backstory="You're reviewing the Content Writer's work to ensure quality and accuracy.",
+            allow_delegation=False,
+            verbose=True,
+            llm=llm
+        )
 
-    return jsonify({
-        "article": result,
-        "audio_url": f"/download-audio"
-    })
+        senior_reviewer = Agent(
+            role="Senior Reviewer",
+            goal="Ensure the final content meets YouTube guidelines and is suitable for publication.",
+            backstory="You're an experienced content reviewer specializing in YouTube compliance, ensuring all content aligns with platform rules.",
+            allow_delegation=False,
+            verbose=True,
+            llm=llm
+        )
 
+        # Define Tasks
+        plan = Task(
+            description=(
+                f"1. Identify the latest trends, key players, and noteworthy news on {topic}.\n"
+                "2. Determine the target audience and their interests.\n"
+                "3. Develop a detailed content outline including an introduction, key points, and a call to action.\n"
+                "4. Include SEO keywords and relevant data or sources."
+            ),
+            expected_output="A comprehensive content plan document with an outline, audience analysis, and SEO keywords.",
+            agent=planner,
+        )
+
+        write = Task(
+            description=(
+                f"1. Use the content plan to craft a compelling blog post on {topic}.\n"
+                "2. Incorporate SEO keywords naturally.\n"
+                "3. Structure the post with an engaging introduction, insightful body, and a strong conclusion.\n"
+                "4. Proofread for grammatical errors and brand voice alignment."
+            ),
+            expected_output="A well-written blog post in markdown format, ready for publication.",
+            agent=writer,
+        )
+
+        edit = Task(
+            description="Proofread the blog post for grammatical errors and ensure it aligns with the brand's voice.",
+            expected_output="A polished blog post ready for publication.",
+            agent=editor
+        )
+        
+        review = Task(
+            description="Ensure the content complies with YouTube's content policies and is safe for publishing.",
+            expected_output="A finalized article that meets YouTube's guidelines.",
+            agent=senior_reviewer
+        )
+        
+        # Create and run the Crew
+        crew = Crew(
+            agents=[planner, writer, editor, senior_reviewer],
+            tasks=[plan, write, edit, review],
+            verbose=True
+        )
+        
+        result = crew.kickoff()
+        print("Generated content successfully")
+        
+        return jsonify({"result": str(result)})
+    
+    except Exception as e:
+        print(f"Error occurred: {str(e)}")
+        return jsonify({"error": str(e)}), 500
+    
 @app.route('/download-audio', methods=['GET'])
 def download_audio():
     return send_file("article_audio.mp3", as_attachment=True)
 
 if __name__ == '__main__':
-    app.run(debug=True)
+    port = int(os.environ.get("PORT", 5000))
+    app.run(host='0.0.0.0', port=port, debug=True)
