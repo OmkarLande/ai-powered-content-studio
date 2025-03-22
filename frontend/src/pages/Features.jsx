@@ -20,9 +20,9 @@ const Features = () => {
       <Sidebar />
 
       {/* Main Content */}
-      <div className="flex-1 ml-64 flex items-center justify-center p-6">
+      <div className="flex-1  flex items-center justify-center p-6">
         <div className="w-full max-w-xl sm:max-w-2xl lg:max-w-3xl">
-          <Lottie options={defaultOptions} height={"100%"} width={"100%"} />
+          <Lottie options={defaultOptions} height={"60%"} width={"60%"} />
         </div>
       </div>
 

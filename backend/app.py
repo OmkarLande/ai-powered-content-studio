@@ -2,9 +2,10 @@ import os
 import re
 import warnings
 from flask import Flask, request, jsonify, send_file
+from flask_jwt_extended import JWTManager, create_access_token, jwt_required, get_jwt_identity
 from crewai import Agent, Task, Crew, LLM
 from flask_cors import CORS
-from crewai_tools import YoutubeVideoSearchTool	
+from crewai_tools import YoutubeVideoSearchTool
 from youtube_transcript_api import YouTubeTranscriptApi
 import google.generativeai as genai
 
@@ -16,8 +17,8 @@ app = Flask(__name__)
 CORS(app)  # Enable CORS for all routes for simplicity
 
 # Configure Gemini
-GEMINI_API_KEY = "AIzaSyCuKU4cJ80cqGTEVI5NF_1u9paxGJvzZdQ"
-OPENAI_API_KEY = "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"
+GEMINI_API_KEY = "your-gemini-api-key"
+OPENAI_API_KEY = "your-openai-api-key"
 
 # Custom Gemini LLM Wrapper
 class GeminiLLM:
@@ -95,23 +96,19 @@ def generate_content():
 
         # Define Tasks
         plan = Task(
-            description=(
-                f"1. Identify the latest trends, key players, and noteworthy news on {topic}.\n"
-                "2. Determine the target audience and their interests.\n"
-                "3. Develop a detailed content outline including an introduction, key points, and a call to action.\n"
-                "4. Include SEO keywords and relevant data or sources."
-            ),
+            description=(f"1. Identify the latest trends, key players, and noteworthy news on {topic}.\n"
+                         "2. Determine the target audience and their interests.\n"
+                         "3. Develop a detailed content outline including an introduction, key points, and a call to action.\n"
+                         "4. Include SEO keywords and relevant data or sources."),
             expected_output="A comprehensive content plan document with an outline, audience analysis, and SEO keywords.",
             agent=planner,
         )
 
         write = Task(
-            description=(
-                f"1. Use the content plan to craft a compelling blog post on {topic}.\n"
-                "2. Incorporate SEO keywords naturally.\n"
-                "3. Structure the post with an engaging introduction, insightful body, and a strong conclusion.\n"
-                "4. Proofread for grammatical errors and brand voice alignment."
-            ),
+            description=(f"1. Use the content plan to craft a compelling blog post on {topic}.\n"
+                         "2. Incorporate SEO keywords naturally.\n"
+                         "3. Structure the post with an engaging introduction, insightful body, and a strong conclusion.\n"
+                         "4. Proofread for grammatical errors and brand voice alignment."),
             expected_output="A well-written blog post in markdown format, ready for publication.",
             agent=writer,
         )
@@ -139,11 +136,11 @@ def generate_content():
         print("Generated content successfully")
         
         return jsonify({"result": str(result)})
-    
+
     except Exception as e:
         print(f"Error occurred: {str(e)}")
         return jsonify({"error": str(e)}), 500
-    
+
 @app.route('/download-audio', methods=['GET'])
 def download_audio():
     return send_file("article_audio.mp3", as_attachment=True)
@@ -218,13 +215,11 @@ def analyze_transcript():
 
         # Define the Task for the Transcript Analyzer
         analyze_task = Task(
-            description=(
-                f"1. Analyze the transcript of the YouTube video at {youtube_url}.\n"
-                "2. Extract relevant content from the transcript.\n"
-                "3. Ensure the timestamps for the extracted content are in hh:mm:ss format.\n"
-                "4. Ensure the difference between consecutive timestamps is less than 30 seconds.\n"
-                "5. Consider YouTube trends and popular topics when extracting relevant content."
-            ),
+            description=(f"1. Analyze the transcript of the YouTube video at {youtube_url}.\n"
+                         "2. Extract relevant content from the transcript.\n"
+                         "3. Ensure the timestamps for the extracted content are in hh:mm:ss format.\n"
+                         "4. Ensure the difference between consecutive timestamps is less than 30 seconds.\n"
+                         "5. Consider YouTube trends and popular topics when extracting relevant content."),
             expected_output="A list of relevant content snippets with their corresponding timestamps in hh:mm:ss format.",
             agent=transcript_analyzer
         )

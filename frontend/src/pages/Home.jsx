@@ -140,7 +140,7 @@ const Home = () => {
             </div>
 
             <div className="hidden sm:flex w-1/2">
-              <Lottie options={defaultOptions} height={600} width={600} className="max-w-lg" />
+              <Lottie options={defaultOptions} height={1000} width={1000} className="max-w-lg" />
             </div>
           </div>
         </section>

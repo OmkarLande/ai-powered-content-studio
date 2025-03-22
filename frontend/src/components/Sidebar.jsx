@@ -1,12 +1,15 @@
 import React from "react";
 import { Link } from "react-router-dom";
-import { FileText, Mic } from "lucide-react";
+import { FileText, Mic , Video } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 
 const Sidebar = () => {
-    const navigate = useNavigate();
+  const navigate = useNavigate();
   return (
-    <div className="h-screen w-64 bg-gray-900 text-white fixed top-0 left-0 shadow-lg z-20">
+    <div
+      className="h-screen w-64 bg-gray-900 text-white  top-16 left-0 shadow-lg z-20"
+      style={{ top: "4rem" }} // Adjust this value based on your navbar height
+    >
       <div
         className="flex items-center justify-center h-16 bg-red-600 cursor-pointer"
         onClick={() => navigate("/features")}
@@ -25,6 +28,16 @@ const Sidebar = () => {
           to="/features/voice-over"
           Icon={Mic}
           label="AI Voice Over"
+        />
+        <SidebarItem
+          to="/features/text-to-speech"
+          Icon={Mic}
+          label="Text to Speech"
+        />
+        <SidebarItem
+          to="/features/shorts-creation"
+          Icon={Video}
+          label="Text to Speech"
         />
       </nav>
     </div>
