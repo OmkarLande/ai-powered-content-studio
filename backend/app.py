@@ -1,126 +1,50 @@
 import os
+import re
 import warnings
 from flask import Flask, request, jsonify, send_file
 from flask_jwt_extended import JWTManager, create_access_token, jwt_required, get_jwt_identity
 from crewai import Agent, Task, Crew, LLM
 from flask_cors import CORS
-from notion_client import Client
-from pymongo import MongoClient
-from bson import ObjectId
-import bcrypt
-
-app = Flask(__name__)
-app.secret_key = "ai-powered-monitoring"
-
-# MongoDB Connection
-client = MongoClient("mongodb+srv://admin:9QClajz7LQ8rMMyw@cluster0.jjih8.mongodb.net/")
-db = client["content-creators"]
-users = db["users"]
-
-# Notion OAuth Config
-NOTION_CLIENT_ID = os.getenv("NOTION_CLIENT_ID")
-NOTION_CLIENT_SECRET = os.getenv("NOTION_CLIENT_SECRET")
-NOTION_REDIRECT_URI = os.getenv("NOTION_REDIRECT_URI")
-NOTION_AUTH_URL = "https://api.notion.com/v1/oauth/token"   
-
-# NOTION_TOKEN = "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"
-# DATABASE_ID = "test-database-1624df00ff718024a863f4410c470342"
-
-# notion = Client(auth=NOTION_TOKEN)
- 
-app.config["JWT_SECRET_KEY"] = "your_secret_key"
-jwt = JWTManager(app)
+from crewai_tools import YoutubeVideoSearchTool
+from youtube_transcript_api import YouTubeTranscriptApi
+import google.generativeai as genai
 
 # Suppress warnings
 warnings.filterwarnings('ignore')
 
 # Set up Flask app
-CORS(app, resources={r"/*": {"origins": "http://localhost:5173"}})  # Enable CORS for localhost:5173
+app = Flask(__name__)
+CORS(app)  # Enable CORS for all routes for simplicity
 
-def hash_password(password):
-    return bcrypt.hashpw(password.encode("utf-8"), bcrypt.gensalt()).decode("utf-8")
+# Configure Gemini
+GEMINI_API_KEY = "your-gemini-api-key"
+OPENAI_API_KEY = "your-openai-api-key"
 
-# Helper function to check password
-def check_password(password, hashed):
-    return bcrypt.checkpw(password.encode("utf-8"), hashed.encode("utf-8"))
+# Custom Gemini LLM Wrapper
+class GeminiLLM:
+    def __init__(self, model="gemini-1.5-flash", temperature=0.7):
+        self.model = genai.GenerativeModel(model)
+        self.temperature = temperature
 
-def create_users_collection():
-    validation = {
-        "$jsonSchema": {
-            "bsonType": "object",
-            "required": ["email", "password"],
-            "properties": {
-                "email": {
-                    "bsonType": "string",
-                    "pattern": "^.+@.+$",
-                    "description": "Must be a valid email"
-                },
-                "password": {
-                    "bsonType": "string",
-                    "minLength": 8,
-                    "description": "Must be a hashed password"
-                },
-                "notion_token": {
-                    "bsonType": "string",
-                    "description": "Notion access token (optional)"
-                }
-            }
-        }
-    }
+    def generate(self, prompt):
+        try:
+            response = self.model.generate_content(prompt)
+            return response.text
+        except Exception as e:
+            return f"Error: {str(e)}"
 
-    if "users" not in db.list_collection_names():
-        db.create_collection("users", validator=validation)
-        print("Users collection created with schema validation.")
+# Initialize LLM
+llm = GeminiLLM(model="gemini-1.5-flash", temperature=0.7)
 
-# Run this function once
-create_users_collection()
-
-# Signup Route
-@app.route("/signup", methods=["POST"])
-def signup():
-    data = request.json
-    email = data.get("email")
-    password = data.get("password")
-
-    if not email or not password:
-        return jsonify({"error": "Email and password are required"}), 400
-    if users.find_one({"email": email}):
-        return jsonify({"error": "Email already exists"}), 400
-
-    hashed_password = hash_password(password)
-    user_id = users.insert_one({
-        "email": email,
-        "password": hashed_password,
-    }).inserted_id
-
-    return jsonify({"message": "User registered", "user_id": str(user_id)})
-
-# Login Route
-@app.route("/login", methods=["POST"])
-def login():
-    data = request.json
-    email = data.get("email")
-    password = data.get("password")
-
-    user = users.find_one({"email": email})
-    if not user or not check_password(password, user["password"]):
-        return jsonify({"error": "Invalid credentials"}), 401
-
-    access_token = create_access_token(identity=str(user["_id"]))
-    return jsonify({"message": "Login successful", "token": access_token})
-
-# Get User Info (Protected Route)
-@app.route("/user", methods=["GET"])
-@jwt_required()
-def get_user():
-    user_id = get_jwt_identity()
-    user = users.find_one({"_id": ObjectId(user_id)}, {"password": 0})  # Exclude password
-    if not user:
-        return jsonify({"error": "User not found"}), 404
-
-    user["_id"] = str(user["_id"])
-    return jsonify(user)
-
+# Custom YoutubeSearchTool with Gemini
+class GeminiYoutubeSearchTool(YoutubeVideoSearchTool):
+    def _run(self, query):
+        try:
+            # Custom implementation using Gemini
+            prompt = f"Analyze this YouTube video: {self.youtube_video_url}\n{query}"
+            return llm.generate(prompt)
+        except Exception as e:
+            return f"Error: {str(e)}"
 
 @app.route('/generate', methods=['POST', 'GET'])
 def generate_content():
@@ -132,19 +56,7 @@ def generate_content():
     
     topic = data.get("topic", "Artificial Intelligence")
     
-    # Use a fixed API key instead of expecting it from the request
-    api_key = "AIzaSyCuKU4cJ80cqGTEVI5NF_1u9paxGJvzZdQ"
-    
     try:
-        # Set up LLM with the API key
-        llm = LLM(
-            model="gemini/gemini-1.5-flash-8b",
-            temperature=0.7,
-            api_key=api_key
-        )
-        
-        print("LLM initialized successfully")
-        
         # Define Agents
         planner = Agent(
             role="Content Planner",
@@ -152,7 +64,7 @@ def generate_content():
             backstory=f"You're working on planning a blog article about the topic: {topic}.",
             allow_delegation=False,
             verbose=True,
-            llm=llm
+            llm=llm  # Use the custom Gemini LLM
         )
 
         writer = Agent(
@@ -161,7 +73,7 @@ def generate_content():
             backstory=f"You're writing a new opinion piece based on the Content Planner's outline.",
             allow_delegation=False,
             verbose=True,
-            llm=llm
+            llm=llm  # Use the custom Gemini LLM
         )
 
         editor = Agent(
@@ -170,7 +82,7 @@ def generate_content():
             backstory="You're reviewing the Content Writer's work to ensure quality and accuracy.",
             allow_delegation=False,
             verbose=True,
-            llm=llm
+            llm=llm  # Use the custom Gemini LLM
         )
 
         senior_reviewer = Agent(
@@ -179,28 +91,24 @@ def generate_content():
             backstory="You're an experienced content reviewer specializing in YouTube compliance, ensuring all content aligns with platform rules.",
             allow_delegation=False,
             verbose=True,
-            llm=llm
+            llm=llm  # Use the custom Gemini LLM
         )
 
         # Define Tasks
         plan = Task(
-            description=(
-                f"1. Identify the latest trends, key players, and noteworthy news on {topic}.\n"
-                "2. Determine the target audience and their interests.\n"
-                "3. Develop a detailed content outline including an introduction, key points, and a call to action.\n"
-                "4. Include SEO keywords and relevant data or sources."
-            ),
+            description=(f"1. Identify the latest trends, key players, and noteworthy news on {topic}.\n"
+                         "2. Determine the target audience and their interests.\n"
+                         "3. Develop a detailed content outline including an introduction, key points, and a call to action.\n"
+                         "4. Include SEO keywords and relevant data or sources."),
             expected_output="A comprehensive content plan document with an outline, audience analysis, and SEO keywords.",
             agent=planner,
         )
 
         write = Task(
-            description=(
-                f"1. Use the content plan to craft a compelling blog post on {topic}.\n"
-                "2. Incorporate SEO keywords naturally.\n"
-                "3. Structure the post with an engaging introduction, insightful body, and a strong conclusion.\n"
-                "4. Proofread for grammatical errors and brand voice alignment."
-            ),
+            description=(f"1. Use the content plan to craft a compelling blog post on {topic}.\n"
+                         "2. Incorporate SEO keywords naturally.\n"
+                         "3. Structure the post with an engaging introduction, insightful body, and a strong conclusion.\n"
+                         "4. Proofread for grammatical errors and brand voice alignment."),
             expected_output="A well-written blog post in markdown format, ready for publication.",
             agent=writer,
         )
@@ -228,91 +136,116 @@ def generate_content():
         print("Generated content successfully")
         
         return jsonify({"result": str(result)})
-    
+
     except Exception as e:
         print(f"Error occurred: {str(e)}")
         return jsonify({"error": str(e)}), 500
-    
+
 @app.route('/download-audio', methods=['GET'])
 def download_audio():
     return send_file("article_audio.mp3", as_attachment=True)
 
-@app.route("/connect/notion", methods=["GET"])
-@jwt_required()
-def connect_notion():
-    user_id = get_jwt_identity()
-    
-    auth_url = (
-        "https://api.notion.com/v1/oauth/authorize?"
-        f"client_id={NOTION_CLIENT_ID}&"
-        f"response_type=code&"
-        f"owner=user&"
-        f"redirect_uri={NOTION_REDIRECT_URI}"
-    )
-    return jsonify({"url": auth_url})
-    
-    
-@app.route("/notion/callback", methods=["GET"])
-def notion_callback():
-    code = request.args.get("code")
-    if not code:
-        return jsonify({"error": "Authorization code not found"}), 400
+def extract_video_id(youtube_url):
+    """Extracts the Video ID from a YouTube URL."""
+    pattern = r"(?:v=|\/)([0-9A-Za-z_-]{11}).*"
+    match = re.search(pattern, youtube_url)
+    return match.group(1) if match else None
 
-    token_url = "https://api.notion.com/v1/oauth/token"
-    headers = {"Content-Type": "application/json"}
-    data = {
-        "grant_type": "authorization_code",
-        "code": code,
-        "redirect_uri": NOTION_REDIRECT_URI,
-        "client_id": NOTION_CLIENT_ID,
-        "client_secret": NOTION_CLIENT_SECRET
-    }
+def get_youtube_transcript(video_id):
+    """Fetches the transcript of a YouTube video along with timestamps."""
+    try:
+        return YouTubeTranscriptApi.get_transcript(video_id)
+        print("Successfully fetched transcript")
+    except Exception as e:
+        return str(e)
 
-    response = requests.post(token_url, json=data, headers=headers)
-    token_info = response.json()
+@app.route('/analyze_transcript', methods=['POST'])
+def analyze_transcript():
+    # Log: Starting analyze_transcript endpoint
+    print("Starting analyze_transcript endpoint")
 
-    if "access_token" not in token_info:
-        return jsonify({"error": "Failed to get access token"}), 400
+    # Get input data from the request
+    data = request.get_json()
+    if not data:
+        print("Error: No data provided in the request")
+        return jsonify({"error": "No data provided"}), 400
 
-    # Store Notion token in user DB
-    user_id = get_jwt_identity()
-    users.update_one({"_id": ObjectId(user_id)}, {"$set": {"notion_token": token_info["access_token"]}})
+    youtube_url = data.get("youtube_url")
+    if not youtube_url:
+        print("Error: Missing 'youtube_url' in request")
+        return jsonify({"error": "Missing 'youtube_url' in request"}), 400
 
-    return jsonify({"message": "Notion connected successfully!"})
+    # Extract video ID from the URL
+    video_id = extract_video_id(youtube_url)
+    if not video_id:
+        print("Error: Invalid YouTube URL")
+        return jsonify({"error": "Invalid YouTube URL"}), 400
 
-    
-@app.route("/send/notion", methods=["POST"])
-@jwt_required()
-def send_to_notion():
-    user_id = get_jwt_identity()
-    user = users.find_one({"_id": ObjectId(user_id)})
+    # Log: Extracted video ID
+    print(f"Extracted video ID: {video_id}")
 
-    if not user or not user.get("notion_token"):
-        return jsonify({"error": "Notion not connected"}), 400
+    # Fetch the transcript
+    transcript = get_youtube_transcript(video_id)
+    print("Fetched transcript")
+    if isinstance(transcript, str):  # If an error occurred
+        print(f"Error fetching transcript: {transcript}")
+        return jsonify({"error": transcript}), 500
 
-    notion_token = user["notion_token"]
-    notion = Client(auth=notion_token)
+    # Log: Successfully fetched transcript
+    print("Successfully fetched transcript")
 
-    data = request.json
-    title = data.get("title", "Untitled")
-    content = data.get("content", "")
+    try:
+        # Initialize the YoutubeVideoSearchTool
+        print("   fetched transcript")
+        youtube_search_tool = YoutubeVideoSearchTool(
+            youtube_video_url=youtube_url
+        )
+        print("Initialized YoutubeVideoSearchTool")
 
-    new_page = notion.pages.create(
-        parent={"database_id": DATABASE_ID},
-        properties={"Name": {"title": [{"text": {"content": title}}]}},
-        children=[{"object": "block", "type": "paragraph", "paragraph": {"text": [{"type": "text", "text": {"content": content}}]}}]
-    )
+        # Define the Transcript Analyzer Agent
+        transcript_analyzer = Agent(
+            role="Transcript Analyzer",
+            goal="Extract relevant content from the YouTube video transcript and provide timestamps in hh:mm:ss format.",
+            backstory="You are an expert in analyzing YouTube video transcripts and extracting key information with precise timestamps.",
+            tools=[youtube_search_tool],
+            verbose=True,
+            llm=llm  # Use the custom Gemini LLM
+        )
+        print("Defined Transcript Analyzer Agent")
 
-    return jsonify({"message": "Content added", "page_id": new_page["id"]})
+        # Define the Task for the Transcript Analyzer
+        analyze_task = Task(
+            description=(f"1. Analyze the transcript of the YouTube video at {youtube_url}.\n"
+                         "2. Extract relevant content from the transcript.\n"
+                         "3. Ensure the timestamps for the extracted content are in hh:mm:ss format.\n"
+                         "4. Ensure the difference between consecutive timestamps is less than 30 seconds.\n"
+                         "5. Consider YouTube trends and popular topics when extracting relevant content."),
+            expected_output="A list of relevant content snippets with their corresponding timestamps in hh:mm:ss format.",
+            agent=transcript_analyzer
+        )
+        print("Defined Task for Transcript Analyzer")
+
+        # Create and run the Crew
+        crew = Crew(
+            agents=[transcript_analyzer],
+            tasks=[analyze_task],
+            verbose=True
+        )
+        print("Created Crew with Transcript Analyzer Agent and Task")
+
+        # Kickoff the task
+        result = crew.kickoff()
+        print("Task kickoff completed successfully")
+
+        # Return the result as JSON
+        print("Returning result as JSON")
+        return jsonify({"result": result})
+
+    except Exception as e:
+        print(f"Error occurred during transcript analysis: {str(e)}")
+        return jsonify({"error": str(e)}), 500
 
 
-
-
-
-
-
-
-#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
 if __name__ == '__main__':
     port = int(os.environ.get("PORT", 5000))
     app.run(host='0.0.0.0', port=port, debug=True)
