@@ -11,6 +11,7 @@ import Signup from "./pages/Singup";
 import { AuthProvider } from "./context/AuthContext";
 import ProtectedRoute from "./components/ProtectedRoute";
 import Texttovoice from "./pages/Texttovoice";
+import Shorts from "./pages/Shorts";
 
 const App = () => {
   return (
@@ -52,6 +53,14 @@ const App = () => {
                 element={
                   <ProtectedRoute>
                     <Texttovoice />
+                  </ProtectedRoute>
+                }
+              />
+              <Route
+                path="/features/shorts-creation"
+                element={
+                  <ProtectedRoute>
+                   <Shorts/>
                   </ProtectedRoute>
                 }
               />

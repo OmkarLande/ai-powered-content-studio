@@ -1,6 +1,6 @@
 import React from "react";
 import { Link } from "react-router-dom";
-import { FileText, Mic } from "lucide-react";
+import { FileText, Mic , Video } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 
 const Sidebar = () => {
@@ -32,6 +32,11 @@ const Sidebar = () => {
         <SidebarItem
           to="/features/text-to-speech"
           Icon={Mic}
+          label="Text to Speech"
+        />
+        <SidebarItem
+          to="/features/shorts-creation"
+          Icon={Video}
           label="Text to Speech"
         />
       </nav>
