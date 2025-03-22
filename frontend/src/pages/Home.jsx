@@ -2,7 +2,7 @@ import React from "react";
 import Lottie from "react-lottie";
 import Slider from "react-slick";
 import { Link } from "react-router-dom";
-import { FileText, Video, TrendingUp, Scissors } from "lucide-react";
+import { FileText, Video, TrendingUp, Scissors , Mic } from "lucide-react";
 import animation from "../assets/animation.json";
 import script from "../assets/script.png";
 import video from "../assets/video.png";
@@ -145,29 +145,25 @@ const Home = () => {
           </div>
         </section>
 
-        {/* Features Section */}
+        
         <section className="py-16 bg-gray-100 w-full">
           <div className="max-w-7xl mx-auto px-6">
             <h2 className="text-4xl font-bold text-center mb-12 text-black">
               Key <span className="text-red-500">Features</span>
             </h2>
 
-            <div className="grid gap-10 grid-cols-1 sm:grid-cols-2 lg:grid-cols-4">
+            <div className="grid gap-10 grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 items-center justify-items-center ml-60">
               <Feature
                 icon={<FileText className="text-red-500 w-14 h-14" />}
                 title="Script Generation"
                 desc="AI-powered script writing and refinement."
               />
               <Feature
-                icon={<Video className="text-blue-500 w-14 h-14" />}
-                title="Video Editing"
+                icon={<Mic className="text-blue-500 w-14 h-14" />}
+                title="AI Voice Over"
                 desc="Automated video cutting, resizing, and voiceovers."
               />
-              <Feature
-                icon={<TrendingUp className="text-green-500 w-14 h-14" />}
-                title="Performance Analysis"
-                desc="Content optimization using AI-driven analytics."
-              />
+              
               <Feature
                 icon={<Scissors className="text-yellow-500 w-14 h-14" />}
                 title="Shorts Creation"

@@ -37,7 +37,7 @@ const Sidebar = () => {
         <SidebarItem
           to="/features/shorts-creation"
           Icon={Video}
-          label="Text to Speech"
+          label="Shorts Creation"
         />
       </nav>
     </div>
