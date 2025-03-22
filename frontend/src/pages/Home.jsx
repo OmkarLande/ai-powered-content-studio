@@ -2,7 +2,7 @@ import React from "react";
 import Lottie from "react-lottie";
 import Slider from "react-slick";
 import { Link } from "react-router-dom";
-import { FileText, Video, TrendingUp, Scissors , Mic } from "lucide-react";
+import { FileText, Video, TrendingUp, Scissors, Mic } from "lucide-react";
 import animation from "../assets/animation.json";
 import script from "../assets/script.png";
 import video from "../assets/video.png";
@@ -85,20 +85,6 @@ const Home = () => {
       link: "/model/1",
     },
     {
-      title: "Video Editing Automation",
-      description:
-        "Automatically edits and resizes videos for different platforms.",
-      imgSrc: video,
-      link: "/model/2",
-    },
-    {
-      title: "Performance Optimizer AI",
-      description:
-        "Analyzes trends and suggests content optimization strategies.",
-      imgSrc: performance,
-      link: "/model/3",
-    },
-    {
       title: "Shorts Creation Model",
       description:
         "Identifies key moments in long videos and generates shorts.",
@@ -116,7 +102,7 @@ const Home = () => {
             <Lottie options={defaultOptions} height={400} width={400} />
           </div>
 
-          <div className="w-full flex flex-col-reverse sm:flex-row items-start justify-between px-6 sm:px-8 lg:px-24">
+          <div className="w-full flex flex-col-reverse sm:flex-row items-start justify-between px-6 sm:px-8 lg:px-24 py-2">
             <div className="max-w-2xl text-center pt-32 sm:text-left mb-8 sm:mb-0">
               <h1 className="text-4xl sm:text-5xl font-bold text-black leading-tight">
                 AI-Powered <span className="text-red-500">Content Studio</span>
@@ -139,13 +125,19 @@ const Home = () => {
               </div>
             </div>
 
-            <div className="hidden sm:flex w-1/2">
-              <Lottie options={defaultOptions} height={1000} width={1000} className="max-w-lg" />
+            <div className="hidden sm:flex w-1/2 overflow-hidden">
+              <div className="overflow-hidden">
+                <Lottie
+                  options={defaultOptions}
+                  height={1000}
+                  width={1000}
+                  className="max-w-lg"
+                />
+              </div>
             </div>
           </div>
         </section>
 
-        
         <section className="py-16 bg-gray-100 w-full">
           <div className="max-w-7xl mx-auto px-6">
             <h2 className="text-4xl font-bold text-center mb-12 text-black">
@@ -163,7 +155,7 @@ const Home = () => {
                 title="AI Voice Over"
                 desc="Automated video cutting, resizing, and voiceovers."
               />
-              
+
               <Feature
                 icon={<Scissors className="text-yellow-500 w-14 h-14" />}
                 title="Shorts Creation"
@@ -174,7 +166,9 @@ const Home = () => {
         </section>
 
         {/* Carousel Section */}
-        <section className="py-32 bg-white w-full"> {/* Increased padding for height */}
+        <section className="py-32 bg-white w-full">
+          {" "}
+          {/* Increased padding for height */}
           <div className="max-w-6xl mx-auto px-6">
             <h2 className="text-4xl font-bold text-center mb-12 text-black">
               Explore <span className="text-red-500">Models</span>
